@@ -7,6 +7,8 @@ $parentDirectory = ".\"
 $processedContentsFile1 = ".\macro-use-temp1.txt"
 $processedContentsFile2 = ".\macro-use-temp2.txt"
 
+# For now I am leaving these to help with debugging.
+
 function Expand-Abbreviations {
     Param(
         [Parameter(Mandatory=$true)]
