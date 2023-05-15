@@ -1,3 +1,46 @@
+<#
+    .SYNOPSIS
+        A PowerShell script for creating directory structures based on an input file.
+
+    .DESCRIPTION
+        This script reads a list of folder names from a text file, where each line represents a folder and the depth of the folder in the directory structure is indicated by the number of tabs at the start of the line. It supports abbreviations, which are surrounded by double curly brackets ({{}}) and expand to the contents of a text file with the same name as the abbreviation. Currently, abbreviation nesting is not supported.
+
+    .NOTES
+        Author: Mark Bowden
+        Date: 5/15/23
+        Version: 0.9.2
+		
+		
+		# Example folderNames.txt:
+		Folder1
+			Folder2
+				{{abbreviations}}
+		Folder3
+
+		Example abbreviations.txt
+		abfolder1
+			abfolder2
+		abfolder3
+			abfolder4
+				abfolder5
+
+		Result:
+		0
+		├───Folder1
+		│   └───Folder2
+		│       ├───abfolder1
+		│       │   └───abfolder2
+		│       └───abfolder3
+		│           └───abfolder4
+		│               └───abfolder5
+		└───Folder3
+			├───abFolder1
+			│   └───abfolder2
+			└───abfolder3
+				└───abfolder4
+					└───abfolder5
+#>
+
 # Specify the path to the contents file
 $contentsFile = ".\folderNames.txt"
 
@@ -40,13 +83,6 @@ function Expand-Abbreviations {
     }
     ($processedLines -join "`r`n") | Out-File $outputFile
 }
-
-<# Begin Procedural Code
-------------------------------------------------------------------
-------------------------------------------------------------------
-------------------------------------------------------------------
-------------------------------------------------------------------
-#>
 
 # Call the preprocessor function
 Expand-Abbreviations -inputFile $contentsFile -outputFile $processedContentsFile
