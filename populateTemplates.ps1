@@ -13,10 +13,7 @@
     Create a specification file with lines in the format "path_to_template,path_to_base_folder".
     Example:
         C:\Templates\ExampleTemplate.txt,C:\Projects\BaseFolder1
-        C:\Templates\AnotherTemplate.txt,C:\Projects\BaseFolder2
-
-    Run the script in PowerShell:
-        .\PopulateTemplates.ps1 -specificationFile "path_to_specification_file"
+        C:\Templates\AnotherTemplate.txt,C:\Projects\BaseFolder
 
     Replace "path_to_specification_file" with the actual path to your specification file.
 
