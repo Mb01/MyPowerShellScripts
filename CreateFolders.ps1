@@ -4,10 +4,7 @@ $contentsFile = ".\folderNames.txt"
 # Set the directory to current directory
 $parentDirectory = ".\"
 
-$processedContentsFile1 = ".\macro-use-temp1.txt"
-$processedContentsFile2 = ".\macro-use-temp2.txt"
-
-# For now I am leaving these to help with debugging.
+$processedContentsFile = ".\macro-use-temp1.txt"
 
 function Expand-Abbreviations {
     Param(
@@ -19,15 +16,18 @@ function Expand-Abbreviations {
     )
 
     $lines = Get-Content $inputFile
-	
+
     $processedLines = New-Object System.Collections.Generic.List[string]
 
     foreach ($line in $lines) {
-        if ($line -match "{{(.+)}}") {
-            $abbreviationFile = ".\$($matches[1]).txt"
+		# Is the name surrounded in {{curly brackets}}?
+        if ($line -match "(.*?){{(.+)}}") {
+			# Get the name between the brackets and use as a filename.
+            $abbreviationFile = ".\$($matches[2]).txt"
             if (Test-Path $abbreviationFile) {
                 $tabs = [regex]::Match($line, "^\t*").Value
                 $abbreviationLines = Get-Content $abbreviationFile
+				# For each expansion line, add the tabs from the abbreviated line and save to output.
                 foreach ($abbreviationLine in $abbreviationLines) {
                     $processedLines.Add($tabs + $abbreviationLine)
                 }
@@ -38,64 +38,8 @@ function Expand-Abbreviations {
             $processedLines.Add($line)
         }
     }
-	$processedLines | Out-File $outputFile
+    ($processedLines -join "`r`n") | Out-File $outputFile
 }
-
-function Enumerate-Folders {
-    Param(
-        [Parameter(Mandatory=$true)]
-        [string]$inputFilePath,
-
-        [Parameter(Mandatory=$true)]
-        [string]$outputFile
-    )
-
-    $inputFile = Get-Content $inputFilePath
-
-    # Create an empty stack to hold folder enumerations
-    $folderEnumerations = New-Object System.Collections.Stack
-    $folderEnumerations.Push(0)
-
-    # Initialize previous depth
-    $prevDepth = 0
-
-    # Output array
-    $enumeratedFolders = New-Object System.Collections.Generic.List[string]
-
-    # each line is considered as a folder name, we'll iterate by line
-    foreach ($line in $inputFile) {
-        # Get depth based on number of tabs
-        $depth = ([regex]::Matches($line, "`t")).Count
-        $line = $line.TrimStart("`t")
-
-        # Check if we are going deeper
-        if ($depth -gt $prevDepth) {
-            # Reset enumeration for new depth level
-            $folderEnumerations.Push(0)
-        } elseif ($depth -lt $prevDepth) {
-            # If depth decreased, pop enumerations from the stack
-            for ($j=0; $j -lt ($prevDepth - $depth); $j++) {
-                $folderEnumerations.Pop()
-            }
-        }
-
-        # Prepare the folder name
-        $folderName = ("`t" * $depth) + ($folderEnumerations.Peek()).ToString() + ". " + $line
-        # Increment the enumeration for the current depth level
-        $folderEnumerations.Push($folderEnumerations.Pop() + 1)
-
-        # Add the folder name to the output array
-        $enumeratedFolders.Add($folderName)
-
-        # Set previous depth to current depth
-        $prevDepth = $depth
-    }
-
-    # Join the folder names with new lines and write to the output file
-    ($enumeratedFolders -join "`r`n") | Out-File $outputFile
-}
-
-
 
 <# Begin Procedural Code
 ------------------------------------------------------------------
@@ -104,52 +48,43 @@ function Enumerate-Folders {
 ------------------------------------------------------------------
 #>
 
-Expand-Abbreviations -inputFile $contentsFile -outputFile $processedContentsFile1
-
-Enumerate-Folders -inputFile $processedContentsFile1 -outputFile $processedContentsFile2
+# Call the preprocessor function
+Expand-Abbreviations -inputFile $contentsFile -outputFile $processedContentsFile
 
 # Then use $processedContentsFile in the folder creation script
-$folderNames = Get-Content $processedContentsFile2
+$folderNames = Get-Content $processedContentsFile
 
 # Create an empty stack to hold parent directories
 $parentDirectories = New-Object System.Collections.Stack
 
-
-
 # Start with the parent directory
 $parentDirectories.Push($parentDirectory)
 
-# Initialize previous depth
-$prevDepth = 0
+$prevPath = $parentDirectory
 
-# each line is considered as a folder name, we'll iterate by line
-for ($i=0; $i -lt $folderNames.Length; $i++) {
+foreach ($line in $folderNames) {
     # Get depth based on number of tabs
-    $depth = ([regex]::Matches($folderNames[$i], "`t")).Count
-    $folderNames[$i] = $folderNames[$i].TrimStart("`t")
-
-    # Check if we are going deeper
+    $depth = ([regex]::Matches($line, "`t")).Count
+    $folderName = $line.TrimStart("`t")
+	
+    # If we are going down in the tree
     if ($depth -gt $prevDepth) {
-        # Push last created directory to the stack
-        $parentDirectories.Push($newFolderPath)
-        # Reset enumeration for new depth level
+        $parentDirectories.Push($prevPath)
+        $prevDepth++
     }
-    elseif ($depth -lt $prevDepth) {
-        # If depth decreased, pop directories and enumerations from the stack
-        for ($j=0; $j -lt ($prevDepth - $depth); $j++) {
-            $parentDirectories.Pop()
-        }
-    }
-
-    # Prepare the folder name
-    $folderName = $folderNames[$i]
-
-    # Combine the parent directory path and the new folder name
+	else{
+    # If we are going up in the tree
+    while ($depth -lt $prevDepth) {
+        $parentDirectories.Pop() | Out-Null
+        $prevDepth --
+    }}
+	
+	# Combine the parent directory path and the new folder name
     $newFolderPath = Join-Path -Path $parentDirectories.Peek() -ChildPath $folderName
-
     # Create the new directory
-    New-Item -ItemType Directory -Force -Path $newFolderPath
-
-    # Set previous depth to current depth
-    $prevDepth = $depth
+    New-Item -ItemType Directory -Force -Path $newFolderPath | Out-Null
+	
+	# Set up for next run
+	$prevPath = $newFolderPath
+	$prevDepth = $depth
 }
