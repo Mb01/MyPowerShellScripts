@@ -41,36 +41,53 @@
 					└───abfolder5
 #>
 
-# Specify the path to the contents file
 $contentsFile = ".\folderNames.txt"
-
-# Set the directory to current directory
 $parentDirectory = ".\"
-
 $processedContentsFile = ".\macro-use-temp1.txt"
 
+$script:folderCount = 0
+$folderLimit = 2000
+
+<#
+.SYNOPSIS
+This function expands abbreviations found in the input file by replacing them with the contents of the corresponding abbreviation files.
+
+.DESCRIPTION
+The function takes an inputFile and an outputFile as parameters. It reads the inputFile line by line. Abbreviations (a word enclosed in double curly braces) are expanded. It checks if a file with the name of the abbreviation exists. If it does, it recursively calls itself to process the abbreviation file.
+
+The processed files are stored in the outputFile with abbreviations replaced by their corresponding contents. If a circular reference is detected, an exception is thrown.
+
+.PARAMETERS
+- inputFile: The path of the file to be processed.
+- outputFile: The path of the file where the processed output will be stored.
+- processedFiles: Array storing previously processed files for detecting circular references.
+
+#>
 function Expand-Abbreviations {
     Param(
         [Parameter(Mandatory=$true)]
         [string]$inputFile,
         
         [Parameter(Mandatory=$true)]
-        [string]$outputFile
+        [string]$outputFile,
+
+        [string[]]$processedFiles = @()
     )
 
     $lines = Get-Content $inputFile
-
     $processedLines = New-Object System.Collections.Generic.List[string]
 
     foreach ($line in $lines) {
-		# Is the name surrounded in {{curly brackets}}?
         if ($line -match "(.*?){{(.+)}}") {
-			# Get the name between the brackets and use as a filename.
             $abbreviationFile = ".\$($matches[2]).txt"
+
+            if ($abbreviationFile -in $processedFiles) {
+                throw "Circular reference detected in file $abbreviationFile."
+            }
+
             if (Test-Path $abbreviationFile) {
                 $tabs = [regex]::Match($line, "^\t*").Value
-                $abbreviationLines = Get-Content $abbreviationFile
-				# For each expansion line, add the tabs from the abbreviated line and save to output.
+                $abbreviationLines = Expand-Abbreviations -inputFile $abbreviationFile -outputFile "$abbreviationFile.expanded" -processedFiles ($processedFiles + $abbreviationFile)
                 foreach ($abbreviationLine in $abbreviationLines) {
                     $processedLines.Add($tabs + $abbreviationLine)
                 }
@@ -82,45 +99,39 @@ function Expand-Abbreviations {
         }
     }
     ($processedLines -join "`r`n") | Out-File $outputFile
+    return $processedLines
 }
 
-# Call the preprocessor function
 Expand-Abbreviations -inputFile $contentsFile -outputFile $processedContentsFile
 
-# Then use $processedContentsFile in the folder creation script
 $folderNames = Get-Content $processedContentsFile
-
-# Create an empty stack to hold parent directories
 $parentDirectories = New-Object System.Collections.Stack
-
-# Start with the parent directory
 $parentDirectories.Push($parentDirectory)
-
 $prevPath = $parentDirectory
 
 foreach ($line in $folderNames) {
-    # Get depth based on number of tabs
     $depth = ([regex]::Matches($line, "`t")).Count
     $folderName = $line.TrimStart("`t")
 	
-    # If we are going down in the tree
     if ($depth -gt $prevDepth) {
         $parentDirectories.Push($prevPath)
         $prevDepth++
+    } else {
+        while ($depth -lt $prevDepth) {
+            $parentDirectories.Pop() | Out-Null
+            $prevDepth--
+        }
     }
-	else{
-    # If we are going up in the tree
-    while ($depth -lt $prevDepth) {
-        $parentDirectories.Pop() | Out-Null
-        $prevDepth --
-    }}
-	
-	# Combine the parent directory path and the new folder name
+
+    if ($script:folderCount -ge $folderLimit) {
+        Write-Host "Folder limit of $folderLimit reached. No more folders will be created."
+        break
+    }
+
     $newFolderPath = Join-Path -Path $parentDirectories.Peek() -ChildPath $folderName
-    # Create the new directory
     New-Item -ItemType Directory -Force -Path $newFolderPath | Out-Null
-	
-	# Set up for next run
-	$prevPath = $newFolderPath
-	$prevDepth = $depth
+
+    $prevPath = $newFolderPath
+    $prevDepth = $depth
+    $script:folderCount++
 }
