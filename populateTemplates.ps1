@@ -5,7 +5,7 @@
 .DESCRIPTION
     This script reads a specification file that contains lines in the format "path_to_template,path_to_base_folder".
     It copies the specified template file into each leaf folder in the provided base folder's tree structure.
-    After each copy operation, the script prints the directory where the file was added and pauses for user input to allow for inspection.
+    Before each copy operation, the script prints the directory where the file was added and pauses for user input to allow for inspection.
 
 .USAGE
     Save this script to a file named "PopulateTemplates.ps1".
