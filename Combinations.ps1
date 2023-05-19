@@ -3,24 +3,26 @@ function addToList ($list, $element) {
 }
 
 function addRangeToList ($list, $elements) {
-    $null = $list.AddRange($elements)
+    if ($elements -ne $null) {
+        $null = $list.AddRange($elements)
+    }
 }
 
-function newArrayList(){
+function newArrayList() {
     return New-Object System.Collections.ArrayList
 }
 
 function combinations ($strings, $length) {
 
+    $newList = newArrayList
     $emptyList = newArrayList
+    addToList $newList $emptyList
 
     # Base case: empty list or length is 0
     if ($length -eq 0) {
         return ,$newList
     } 
     if ($strings.Count -eq 0) { 
-        $newList = newArrayList
-        addToList $newList $emptyList
         return ,$emptyList
     }
 
@@ -34,7 +36,7 @@ function combinations ($strings, $length) {
         $remaining = $strings.GetRange(1, $strings.Count - 1)
     }
 
-    # Generate combinations with the first item
+    # Generate combinations including the first item
     $withFirst = newArrayList
     foreach ($combo in (combinations $remaining ($length - 1))) {
         $newCombo = newArrayList
@@ -43,7 +45,7 @@ function combinations ($strings, $length) {
         addToList $withFirst $newCombo
     }
 
-    # Generate combinations without the first item
+    # Generate combinations excluding the first item
     $withoutFirst = combinations $remaining $length
 
     # Return the combination of both results
@@ -54,7 +56,7 @@ function combinations ($strings, $length) {
     return ,$combinedResult
 }
 
-$strings = New-Object System.Collections.ArrayList
+$strings = newArrayList
 addRangeToList $strings @('apple', 'banana', 'cherry', 'mango')
 
 $result = combinations $strings 2
