@@ -126,7 +126,7 @@ foreach ($line in $folderNames) {
         # Combine the parent directory path and the new folder name
         $newFolderPath = Join-Path -Path $parentDirectories.Peek() -ChildPath $folderName
         # Create the new directory
-        New-Item -ItemType Directory -Force -Path $newFolderPath
+        New-Item -ItemType Directory -Force -Path $newFolderPath | Out-Null
 
         # Set up for next run
         $prevPath = $newFolderPath
