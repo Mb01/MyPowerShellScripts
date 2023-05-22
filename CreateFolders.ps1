@@ -95,25 +95,42 @@ foreach ($line in $folderNames) {
     # Get depth based on number of tabs
     $depth = ([regex]::Matches($line, "`t")).Count
     $folderName = $line.TrimStart("`t")
-	
+    
     # If we are going down in the tree
     if ($depth -gt $prevDepth) {
         $parentDirectories.Push($prevPath)
         $prevDepth++
     }
-	else{
+    else{
     # If we are going up in the tree
     while ($depth -lt $prevDepth) {
         $parentDirectories.Pop() | Out-Null
         $prevDepth --
     }}
-	
-	# Combine the parent directory path and the new folder name
-    $newFolderPath = Join-Path -Path $parentDirectories.Peek() -ChildPath $folderName
-    # Create the new directory
-    New-Item -ItemType Directory -Force -Path $newFolderPath
-	
-	# Set up for next run
-	$prevPath = $newFolderPath
-	$prevDepth = $depth
+
+    # If the name is surrounded in [...]
+    if ($folderName -match "\[(.+)\]") {
+        # Get the file name between the brackets.
+        $fileName = $matches[1]
+        $sourceFile = ".\Formats\$fileName"
+
+        # Check if the source file exists
+        if (Test-Path $sourceFile) {
+            # Combine the parent directory path and the new file name
+            $newFilePath = Join-Path -Path $parentDirectories.Peek() -ChildPath $fileName
+            # Copy the file to the new location
+            Copy-Item -Path $sourceFile -Destination $newFilePath
+        } else {
+            Write-Host "File $sourceFile does not exist."
+        }
+    } else {
+        # Combine the parent directory path and the new folder name
+        $newFolderPath = Join-Path -Path $parentDirectories.Peek() -ChildPath $folderName
+        # Create the new directory
+        New-Item -ItemType Directory -Force -Path $newFolderPath
+
+        # Set up for next run
+        $prevPath = $newFolderPath
+    }
+    $prevDepth = $depth
 }
