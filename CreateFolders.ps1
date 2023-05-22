@@ -10,7 +10,6 @@
         Date: 5/15/23
         Version: 0.9.2
 		
-		
 		Example folderNames.txt:
 		Folder1
 			Folder2
